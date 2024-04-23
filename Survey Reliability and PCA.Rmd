@@ -1,0 +1,678 @@
+---
+title: "Survey Reliability and PCA"
+author: "Joshua Grant"
+date: "2024-04-22"
+output: html_document
+---
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(GPArotation)
+library(psych)
+library(nFactors)
+library(rmarkdown)
+library(knitr)
+library(parameters)
+library(corrplot)
+library(ggcorrplot)
+library(ggfortify)
+require(GGally) 
+require(CCA)
+require(olsrr)
+require(cocron)
+require(ggplot2)
+library(psych)
+knitr::opts_chunk$set(echo = FALSE,      # include code chunk in the output file
+                      warnings = FALSE,  # sometimes, you code may produce warning messages,
+                                         # you can choose to include the warning messages in
+                                         # the output file. 
+                      messages = FALSE,  #
+                      results = TRUE     # you can also decide whether to include the output
+                                         # in the output file.
+                      )   
+```
+## Data Introuduction 
+
+This data set contains 332 individual's responses to 121 questions from a survey relating to personal satisfaction in school. This data set was pre-processed and contains no missing values. Some formatting changes were required to remove blank spacer rows between each individuals observations. The vast majority of these 121 questions are broken into separate question groups pertaining to different aspects of the student's experience. In the following report we will test the internal reliability of 9 of these question groups. These 9 groups are the following. 
+
+* Students’ Engagement in Learning 
+* Student Learning Styles 
+* Writing and Reading Load 
+* Remedial Experience 
+* Encouragement and Support 
+* Growth and Development 
+* Campus Resource Utilization (three subsets of responses) 
+* Retention 
+* How Students Pay For College. 
+
+As the campus and resource Utilization subset of questions has in itself 3 subsets, there will be functionally 11 question subsets that we will calculate internal reliability for.
+
+```{r}
+surveydata = read.csv("https://raw.githubusercontent.com/JoshuaGrant24/SurveyHW/main/at-risk-survey-data.csv")
+surveydata = surveydata[rowSums(is.na(surveydata)) != ncol(surveydata),]
+```
+# Internal Consistancy analysis
+
+The following table gives the Internal Consistency measurements for the 11 question subsets. Internal consistency is measured using the 95% confidence interval for the Chronbach's alpha for each question group. From this test we can see that the "Writing and Reading Load" and the "How Students Pay for College" question sets have problems with Internal Consistancy
+```{r warning=FALSE}
+alpha <- psych::alpha
+
+Engagedata = cbind(surveydata$q41,surveydata$q42,surveydata$q43,surveydata$q44,surveydata$q45,surveydata$q46,surveydata$q47,surveydata$q48,surveydata$q49,surveydata$q410,surveydata$q411,surveydata$q412,surveydata$q413,surveydata$q414,surveydata$q415,surveydata$q416,surveydata$q417,surveydata$q4,surveydata$q419,surveydata$q420,surveydata$q421)
+
+Learndata = cbind(surveydata$q51,surveydata$q52,surveydata$q53,surveydata$q54,surveydata$q55,surveydata$q56)
+
+Writedata = cbind(surveydata$q61,surveydata$q62,surveydata$q63)
+
+Remeddata = cbind(surveydata$q81,surveydata$q82,surveydata$q83,surveydata$q84,surveydata$q85,surveydata$q86,surveydata$q87,surveydata$q88,surveydata$q89)
+
+Encourdata = cbind(surveydata$q91,surveydata$q92,surveydata$q93,surveydata$q94,surveydata$q95,surveydata$q96,surveydata$q97)
+
+Growthdata = cbind(surveydata$q101,surveydata$q102,surveydata$q103,surveydata$q104,surveydata$q105,surveydata$q106,surveydata$q107,surveydata$q108,surveydata$q109,surveydata$q1010,surveydata$q1011,surveydata$q1012,surveydata$q1013,surveydata$q1014,surveydata$q1015)
+
+Resourcedata1 = cbind(surveydata$q111.1,surveydata$q112.1,surveydata$q113.1,surveydata$q114.1,surveydata$q115.1,surveydata$q116.1,surveydata$q117.1,surveydata$q118.1,surveydata$q119.1,surveydata$q1110.1,surveydata$q1111.1)
+
+Resourcedata2 = cbind(surveydata$q111.2,surveydata$q112.2,surveydata$q113.2,surveydata$q114.2,surveydata$q115.2,surveydata$q116.2,surveydata$q117.2,surveydata$q118.2,surveydata$q119.2,surveydata$q1110.2,surveydata$q1111.2)
+
+Resourcedata3 = cbind(surveydata$q111.3,surveydata$q112.3,surveydata$q113.3,surveydata$q114.3,surveydata$q115.3,surveydata$q116.3,surveydata$q117.3,surveydata$q118.3,surveydata$q119.3,surveydata$q1110.3,surveydata$q1111.3)
+
+Retendata = cbind(surveydata$q121,surveydata$q122,surveydata$q123,surveydata$q124,surveydata$q125)
+
+Paydata = cbind(surveydata$q131,surveydata$q132,surveydata$q133,surveydata$q134,surveydata$q135,surveydata$q136)                   
+cronbach.En = as.numeric(alpha(Engagedata,check.keys=TRUE)$total[1])
+CI.En = cronbach.alpha.CI(alpha=cronbach.En, n=332, items=21, conf.level = 0.95)
+CIC.En = cbind(LCI = CI.En[1], alpha = cronbach.En, UCI =CI.En[2])
+row.names(CIC.En) = "Cronbach Alpha Engagement In Learning"
+
+cronbach.LD = as.numeric(alpha(Learndata,check.keys=TRUE)$total[1])
+CI.LD = cronbach.alpha.CI(alpha=cronbach.LD, n=332, items=6, conf.level = 0.95)
+CIC.LD = cbind(LCI = CI.LD[1], alpha = cronbach.LD, UCI =CI.LD[2])
+row.names(CIC.LD) = "Cronbach Alpha Learning Style"
+
+cronbach.WR = as.numeric(alpha(Writedata,check.keys=TRUE)$total[1])
+CI.WR = cronbach.alpha.CI(alpha=cronbach.WR, n=332, items=3, conf.level = 0.95)
+CIC.WR = cbind(LCI = CI.WR[1], alpha = cronbach.WR, UCI =CI.WR[2])
+row.names(CIC.WR) = "Cronbach Alpha Writing and Reading Load"
+
+cronbach.RM = as.numeric(alpha(Remeddata,check.keys=TRUE)$total[1])
+CI.RM = cronbach.alpha.CI(alpha=cronbach.RM, n=332, items=9, conf.level = 0.95)
+CIC.RM = cbind(LCI = CI.RM[1], alpha = cronbach.RM, UCI =CI.RM[2])
+row.names(CIC.RM) = "Cronbach Alpha Remedial Experience"
+
+cronbach.EC = as.numeric(alpha(Encourdata,check.keys=TRUE)$total[1])
+CI.EC = cronbach.alpha.CI(alpha=cronbach.EC, n=332, items=7, conf.level = 0.95)
+CIC.EC = cbind(LCI = CI.EC[1], alpha = cronbach.EC, UCI =CI.EC[2])
+row.names(CIC.EC) = "Cronbach Alpha Encouragement and Support"
+
+cronbach.GR = as.numeric(alpha(Growthdata,check.keys=TRUE)$total[1])
+CI.GR = cronbach.alpha.CI(alpha=cronbach.GR, n=332, items=15, conf.level = 0.95)
+CIC.GR = cbind(LCI = CI.GR[1], alpha = cronbach.GR, UCI =CI.GR[2])
+row.names(CIC.GR) = "Cronbach Alpha Growth and Development"
+
+cronbach.R1 = as.numeric(alpha(Resourcedata1,check.keys=TRUE)$total[1])
+CI.R1 = cronbach.alpha.CI(alpha=cronbach.R1, n=332, items=11, conf.level = 0.95)
+CIC.R1 = cbind(LCI = CI.R1[1], alpha = cronbach.R1, UCI =CI.R1[2])
+row.names(CIC.R1) = "Campus Resource Utilization set 1 (How Often)"
+
+cronbach.R2 = as.numeric(alpha(Resourcedata2,check.keys=TRUE)$total[1])
+CI.R2 = cronbach.alpha.CI(alpha=cronbach.R2, n=332, items=11, conf.level = 0.95)
+CIC.R2 = cbind(LCI = CI.R2[1], alpha = cronbach.R2, UCI =CI.R2[2])
+row.names(CIC.R2) = "Campus Resource Utilization set 2 (How Satisfied)"
+
+cronbach.R3 = as.numeric(alpha(Resourcedata3,check.keys=TRUE)$total[1])
+CI.R3 = cronbach.alpha.CI(alpha=cronbach.R3, n=332, items=11, conf.level = 0.95)
+CIC.R3 = cbind(LCI = CI.R3[1], alpha = cronbach.R3, UCI =CI.R3[2])
+row.names(CIC.R3) = "Campus Resource Utilization set 3 (How Important)"
+
+cronbach.RT = as.numeric(alpha(Retendata,check.keys=TRUE)$total[1])
+CI.RT = cronbach.alpha.CI(alpha=cronbach.RT, n=332, items=5, conf.level = 0.95)
+CIC.RT = cbind(LCI = CI.RT[1], alpha = cronbach.RT, UCI =CI.RT[2])
+row.names(CIC.RT) = "Cronback Alpha Retention"
+
+cronbach.PY = as.numeric(alpha(Paydata,check.keys=TRUE)$total[1],check.keys=TRUE)
+CI.PY = cronbach.alpha.CI(alpha=cronbach.PY, n=332, items=6, conf.level = 0.95)
+CIC.PY = cbind(LCI = CI.PY[1], alpha = cronbach.PY, UCI =CI.PY[2])
+row.names(CIC.PY) = "Cronback Alpha How Students Pay for College"
+
+
+CI.Merged = rbind(CIC.En,CIC.LD,CIC.WR,CIC.RM,CIC.EC,CIC.GR,CIC.R1,CIC.R2,CIC.R3,CIC.RT,CIC.PY)
+kable(CI.Merged, caption="Confidence Interval of Cranbach Alpha")
+
+
+```
+#PCA Analysis
+
+The following Sections gives an analysis of PCA on each of the 11 question sets. First a set of 4 methods is used to determine the optimal amount of principal components to keep. In order to be conservative, We will use the highest number suggested by any of these 4 methods. In practice this mean we will use Kaiser's Eigenvalue rule for selecting the number of principal components as, at least while using this data, it consistently gives the largest estimate for number of principal components.
+We will then compare the cumulative variance explained by the PCA method and a simple Factor Analysis with an equal number of factors.
+Then we will graph the distribution of the first PC and determine if a transformation is necessary.
+
+```{r}
+My.plotnScree = function(mat, legend = TRUE, method ="factors", main){
+    # mat = data matrix
+    # method = c("factors", "components"), default is "factors".
+    # main = title of the plot
+    ev <- eigen(cor(mat))    # get eigenvalues
+    ap <- parallel(subject=nrow(mat),var=ncol(mat), rep=5000,cent=.05)
+    nScree = nScree(x=ev$values, aparallel=ap$eigen$qevpea, model=method)  
+    ##
+    if (!inherits(nScree, "nScree")) 
+        stop("Method is only for nScree objects")
+    if (nScree$Model == "components") 
+        nkaiser = "Eigenvalues > mean: n = "
+    if (nScree$Model == "factors") 
+      nkaiser = "Eigenvalues > zero: n = "
+    # axis labels
+    xlab = nScree$Model
+    ylab = "Eigenvalues"
+    ##
+    par(col = 1, pch = 18)
+    par(mfrow = c(1, 1))
+    eig <- nScree$Analysis$Eigenvalues
+    k <- 1:length(eig)
+    plot(1:length(eig), eig, type="b", main = main, 
+        xlab = xlab, ylab = ylab, ylim=c(0, 1.2*max(eig)))
+    #
+    nk <- length(eig)
+    noc <- nScree$Components$noc
+    vp.p <- lm(eig[c(noc + 1, nk)] ~ k[c(noc + 1, nk)])
+    x <- sum(c(1, 1) * coef(vp.p))
+    y <- sum(c(1, nk) * coef(vp.p))
+    par(col = 10)
+    lines(k[c(1, nk)], c(x, y))
+    par(col = 11, pch = 20)
+    lines(1:nk, nScree$Analysis$Par.Analysis, type = "b")
+    if (legend == TRUE) {
+        leg.txt <- c(paste(nkaiser, nScree$Components$nkaiser), 
+                   c(paste("Parallel Analysis: n = ", nScree$Components$nparallel)), 
+                   c(paste("Optimal Coordinates: n = ", nScree$Components$noc)), 
+                   c(paste("Acceleration Factor: n = ", nScree$Components$naf))
+                   )
+        legend("topright", legend = leg.txt, pch = c(18, 20, NA, NA), 
+                           text.col = c(1, 3, 2, 4), 
+                           col = c(1, 3, 2, 4), bty="n", cex=0.7)
+    }
+    naf <- nScree$Components$naf
+    text(x = noc, y = eig[noc], label = " (OC)", cex = 0.7, 
+        adj = c(0, 0), col = 2)
+    text(x = naf + 1, y = eig[naf + 1], label = " (AF)", 
+        cex = 0.7, adj = c(0, 0), col = 4)
+}
+# example
+# My.plotnScree(mat=compassion, legend = TRUE, method ="factors", 
+#              main = "Number of Factors to Retain")
+```
+
+```{r}
+My.loadings.var <- function(mat, nfct, method="fa"){
+   # mat =  data matrix
+   # nfct = number of factors or components
+   # method = c("fa", "pca"), default = is "fa".
+    if(method == "fa"){ 
+     f1 <- factanal(mat, factors = nfct,  rotation = "varimax")
+     x <- loadings(f1)
+     vx <- colSums(x^2)
+     varSS = rbind('SS loadings' = vx,
+            'Proportion Var' = vx/nrow(x),
+           'Cumulative Var' = cumsum(vx/nrow(x)))
+     weight = f1$loadings[] 
+   } else if (method == "pca"){
+     pca <- prcomp(mat, center = TRUE, scale = TRUE)
+     varSS = summary(pca)$importance[,1:nfct]
+     weight = pca$rotation[,1:nfct]
+  }
+    list(Loadings = weight, Prop.Var = varSS)
+}
+# example
+# My.loadings.var(mat, nfct=3, method="pca")
+```
+
+
+#Engagement in Learning PCA
+```{r}
+My.plotnScree(mat = Engagedata, legend = TRUE, method ="components",main ="Number of Components Engagement")
+```
+```{r}
+VarProp = My.loadings.var(mat=Engagedata, nfct=5, method="pca")$Prop.Var
+# pca loadings
+kable(round(VarProp,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the principal component")
+VarProp2 = My.loadings.var(mat=Engagedata, nfct=5, method="fa")$Prop.Var
+# pca loadings
+kable(round(VarProp2,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the factors")
+```
+
+```{r}
+Loadings = My.loadings.var(mat=Engagedata, nfct=5, method="pca")$Loadings
+#
+# pca loadings
+kable(round(Loadings,3),
+  caption="Factor loadings of the first few PCAs and the cumulative proportion
+of variation explained by the corresponding PCAs in the Engagement in Learning question set.")
+```
+```{r}
+pca <- prcomp(Engagedata, center = TRUE, scale = TRUE)
+sc.idx = pca$x[,1]
+
+hist(sc.idx,
+main="Distribution of first PCA of Engagement in Learning Questions",
+breaks = seq(min(sc.idx), max(sc.idx), length=9),
+xlab="Engagement in Learning PCA-1",
+xlim=range(sc.idx),
+border="red",
+col="lightblue",
+freq=FALSE
+)
+```
+# Learning Styles PCA
+```{r}
+My.plotnScree(mat = Learndata, legend = TRUE, method ="components",main ="Number of Components Learning Styles")
+```
+```{r}
+VarProp = My.loadings.var(mat=Learndata, nfct=1, method="pca")$Prop.Var
+# pca loadings
+kable(round(VarProp,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the principal component")
+VarProp2 = My.loadings.var(mat=Learndata, nfct=1, method="fa")$Prop.Var
+# pca loadings
+kable(round(VarProp2,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the factors")
+```
+
+```{r}
+Loadings = My.loadings.var(mat=Learndata, nfct=1, method="pca")$Loadings
+#
+# pca loadings
+kable(round(Loadings,3),
+  caption="Factor loadings of the first few PCAs and the cumulative proportion
+of variation explained by the corresponding PCAs in the Learning Style question set.")
+```
+```{r}
+pca <- prcomp(Engagedata, center = TRUE, scale = TRUE)
+sc.idx = pca$x[,1]
+
+hist(sc.idx,
+main="Distribution of first PCA of Learning Style Questions",
+breaks = seq(min(sc.idx), max(sc.idx), length=9),
+xlab="Learning Style PCA-1",
+xlim=range(sc.idx),
+border="red",
+col="lightblue",
+freq=FALSE
+)
+```
+Distribution not skewed, no transformation necessary 
+# Writing and Reading Load PCA
+```{r}
+My.plotnScree(mat = Writedata, legend = TRUE, method ="components",main ="Number of Components Writing and Reading Load")
+```
+```{r}
+VarProp = My.loadings.var(mat=Writedata, nfct=1, method="pca")$Prop.Var
+# pca loadings
+kable(round(VarProp,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the principal component")
+VarProp2 = My.loadings.var(mat=Writedata, nfct=1, method="fa")$Prop.Var
+# pca loadings
+kable(round(VarProp2,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the factors")
+```
+
+```{r}
+Loadings = My.loadings.var(mat=Writedata, nfct=1, method="pca")$Loadings
+#
+# pca loadings
+kable(round(Loadings,3),
+  caption="Factor loadings of the first few PCAs and the cumulative proportion
+of variation explained by the corresponding PCAs in the Writing and Reading load question set.")
+```
+```{r}
+pca <- prcomp(Writedata, center = TRUE, scale = TRUE)
+sc.idx = pca$x[,1]
+
+hist(sc.idx,
+main="Distribution of first PCA of Writing and Reading load Questions",
+breaks = seq(min(sc.idx), max(sc.idx), length=9),
+xlab="Writing and Reading load PCA-1",
+xlim=range(sc.idx),
+border="red",
+col="lightblue",
+freq=FALSE
+)
+```
+Distribution not skewed, no transformation necessary 
+
+# Remedial Experiance PCA
+```{r}
+My.plotnScree(mat = Remeddata, legend = TRUE, method ="components",main ="Number of Components Remedial Experience")
+```
+```{r}
+VarProp = My.loadings.var(mat=Remeddata, nfct=2, method="pca")$Prop.Var
+# pca loadings
+kable(round(VarProp,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the principal component")
+VarProp2 = My.loadings.var(mat=Remeddata, nfct=2, method="fa")$Prop.Var
+# pca loadings
+kable(round(VarProp2,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the factors")
+```
+
+```{r}
+Loadings = My.loadings.var(mat=Remeddata, nfct=2, method="pca")$Loadings
+#
+# pca loadings
+kable(round(Loadings,3),
+  caption="Factor loadings of the first few PCAs and the cumulative proportion
+of variation explained by the corresponding PCAs in the Remedial Experince question set.")
+```
+```{r}
+pca <- prcomp(Remeddata, center = TRUE, scale = TRUE)
+sc.idx = pca$x[,1]
+
+hist(sc.idx,
+main="Distribution of first PCA of Remedial Experince Questions",
+breaks = seq(min(sc.idx), max(sc.idx), length=9),
+xlab="Remedial Experince PCA-1",
+xlim=range(sc.idx),
+border="red",
+col="lightblue",
+freq=FALSE
+)
+```
+Distribution skewed, transformation necessary 
+#Encouragement and Support PCA
+```{r}
+My.plotnScree(mat = Encourdata, legend = TRUE, method ="components",main ="Number of Components Encouragement and Support")
+```
+```{r}
+VarProp = My.loadings.var(mat=Encourdata, nfct=2, method="pca")$Prop.Var
+# pca loadings
+kable(round(VarProp,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the principal component")
+VarProp2 = My.loadings.var(mat=Encourdata, nfct=2, method="fa")$Prop.Var
+# pca loadings
+kable(round(VarProp2,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the factors")
+```
+
+```{r}
+Loadings = My.loadings.var(mat=Encourdata, nfct=2, method="pca")$Loadings
+#
+# pca loadings
+kable(round(Loadings,3),
+  caption="Factor loadings of the first few PCAs and the cumulative proportion
+of variation explained by the corresponding PCAs in the Encouragement and Support question set.")
+```
+```{r}
+pca <- prcomp(Encourdata, center = TRUE, scale = TRUE)
+sc.idx = pca$x[,1]
+
+hist(sc.idx,
+main="Distribution of first PCA of Encouragement and Support Questions",
+breaks = seq(min(sc.idx), max(sc.idx), length=9),
+xlab="Encouragement and Support Questions PCA-1",
+xlim=range(sc.idx),
+border="red",
+col="lightblue",
+freq=FALSE
+)
+```
+Distribution not skewed, no transformation necessary 
+# Growth and Development PCA
+```{r}
+My.plotnScree(mat = Growthdata, legend = TRUE, method ="components",main ="Number of Components Growth and Development")
+```
+```{r}
+VarProp = My.loadings.var(mat=Growthdata, nfct=2, method="pca")$Prop.Var
+# pca loadings
+kable(round(VarProp,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the principal component")
+VarProp2 = My.loadings.var(mat=Growthdata, nfct=2, method="fa")$Prop.Var
+# pca loadings
+kable(round(VarProp2,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the factors")
+```
+
+```{r}
+Loadings = My.loadings.var(mat=Growthdata, nfct=2, method="pca")$Loadings
+#
+# pca loadings
+kable(round(Loadings,3),
+  caption="Factor loadings of the first few PCAs and the cumulative proportion
+of variation explained by the corresponding PCAs in the Growth and Development question set.")
+```
+```{r}
+pca <- prcomp(Growthdata, center = TRUE, scale = TRUE)
+sc.idx = pca$x[,1]
+
+hist(sc.idx,
+main="Distribution of first PCA of Growth and Development Questions",
+breaks = seq(min(sc.idx), max(sc.idx), length=9),
+xlab="Growth and Development PCA-1",
+xlim=range(sc.idx),
+border="red",
+col="lightblue",
+freq=FALSE
+)
+```
+Distribution skewed, transformation necessary 
+# Campus Resources (How Often) PCA
+```{r}
+My.plotnScree(mat = Resourcedata1, legend = TRUE, method ="components",main ="Number of Components Campus Resource (How Often)")
+```
+```{r}
+VarProp = My.loadings.var(mat=Resourcedata1, nfct=3, method="pca")$Prop.Var
+# pca loadings
+kable(round(VarProp,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the principal component")
+VarProp2 = My.loadings.var(mat=Resourcedata1, nfct=3, method="fa")$Prop.Var
+# pca loadings
+kable(round(VarProp2,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the factors")
+```
+
+```{r}
+Loadings = My.loadings.var(mat=Resourcedata1, nfct=3, method="pca")$Loadings
+#
+# pca loadings
+kable(round(Loadings,3),
+  caption="Factor loadings of the first few PCAs and the cumulative proportion
+of variation explained by the corresponding PCAs in the Campus Resources (How Often) question set.")
+```
+```{r}
+pca <- prcomp(Resourcedata1, center = TRUE, scale = TRUE)
+sc.idx = pca$x[,1]
+
+hist(sc.idx,
+main="Distribution of first PCA of Campus Resources (How Often) Questions",
+breaks = seq(min(sc.idx), max(sc.idx), length=9),
+xlab="Campus Resources (How Often) PCA-1",
+xlim=range(sc.idx),
+border="red",
+col="lightblue",
+freq=FALSE
+)
+```
+Distribution not skewed, no transformation necessary 
+# Campus Resources (How Satisfied) PCA
+```{r}
+My.plotnScree(mat = Resourcedata2, legend = TRUE, method ="components",main ="Number of Components Campus Resource (How Satisfied)")
+```
+```{r}
+VarProp = My.loadings.var(mat=Resourcedata2, nfct=3, method="pca")$Prop.Var
+# pca loadings
+kable(round(VarProp,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the principal component")
+VarProp2 = My.loadings.var(mat=Resourcedata2, nfct=3, method="fa")$Prop.Var
+# pca loadings
+kable(round(VarProp2,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the factors")
+```
+
+```{r}
+Loadings = My.loadings.var(mat=Resourcedata2, nfct=3, method="pca")$Loadings
+#
+# pca loadings
+kable(round(Loadings,3),
+  caption="Factor loadings of the first few PCAs and the cumulative proportion
+of variation explained by the corresponding PCAs in the Campus Resources (How Satisfied) question set.")
+```
+```{r}
+pca <- prcomp(Resourcedata2, center = TRUE, scale = TRUE)
+sc.idx = pca$x[,1]
+
+hist(sc.idx,
+main="Distribution of first PCA of Campus Resources (How Satisfied) Questions",
+breaks = seq(min(sc.idx), max(sc.idx), length=9),
+xlab="Campus Resources (How Satisfied) PCA-1",
+xlim=range(sc.idx),
+border="red",
+col="lightblue",
+freq=FALSE
+)
+```
+Distribution skewed, transformation necessary 
+# Campus Resources (How Important) PCA
+```{r}
+My.plotnScree(mat = Resourcedata3, legend = TRUE, method ="components",main ="Number of Components Campus Resource (How Important)")
+```
+```{r}
+VarProp = My.loadings.var(mat=Resourcedata3, nfct=2, method="pca")$Prop.Var
+# pca loadings
+kable(round(VarProp,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the principal component")
+VarProp2 = My.loadings.var(mat=Resourcedata3, nfct=2, method="fa")$Prop.Var
+# pca loadings
+kable(round(VarProp2,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the factors")
+```
+
+```{r}
+Loadings = My.loadings.var(mat=Resourcedata3, nfct=2, method="pca")$Loadings
+#
+# pca loadings
+kable(round(Loadings,3),
+  caption="Factor loadings of the first few PCAs and the cumulative proportion
+of variation explained by the corresponding PCAs in the Campus Resources (How Important) question set.")
+```
+```{r}
+pca <- prcomp(Resourcedata3, center = TRUE, scale = TRUE)
+sc.idx = pca$x[,1]
+
+hist(sc.idx,
+main="Distribution of first PCA of Campus Resources (How Important) Questions",
+breaks = seq(min(sc.idx), max(sc.idx), length=9),
+xlab="Campus Resources (How Important) PCA-1",
+xlim=range(sc.idx),
+border="red",
+col="lightblue",
+freq=FALSE
+)
+```
+Distribution not skewed, no transformation necessary 
+
+# Retention PCA
+```{r}
+My.plotnScree(mat = Retendata, legend = TRUE, method ="components",main ="Number of Components Retention")
+```
+```{r}
+VarProp = My.loadings.var(mat=Retendata, nfct=1, method="pca")$Prop.Var
+# pca loadings
+kable(round(VarProp,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the principal component")
+VarProp2 = My.loadings.var(mat=Retendata, nfct=1, method="fa")$Prop.Var
+# pca loadings
+kable(round(VarProp2,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the factors")
+```
+
+```{r}
+Loadings = My.loadings.var(mat=Retendata, nfct=1, method="pca")$Loadings
+#
+# pca loadings
+kable(round(Loadings,3),
+  caption="Factor loadings of the first few PCAs and the cumulative proportion
+of variation explained by the corresponding PCAs in the Retention question set.")
+```
+```{r}
+pca <- prcomp(Retendata, center = TRUE, scale = TRUE)
+sc.idx = pca$x[,1]
+
+hist(sc.idx,
+main="Distribution of first PCA of Retention Questions",
+breaks = seq(min(sc.idx), max(sc.idx), length=9),
+xlab="Retention PCA-1",
+xlim=range(sc.idx),
+border="red",
+col="lightblue",
+freq=FALSE
+)
+```
+Distribution skewed, transformation necessary 
+# How Students Pay PCA
+```{r}
+My.plotnScree(mat = Paydata, legend = TRUE, method ="components",main ="Number of Components How Students Pay")
+```
+```{r}
+VarProp = My.loadings.var(mat=Paydata, nfct=2, method="pca")$Prop.Var
+# pca loadings
+kable(round(VarProp,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the principal component")
+VarProp2 = My.loadings.var(mat=Paydata, nfct=2, method="fa")$Prop.Var
+# pca loadings
+kable(round(VarProp2,3),
+    caption="Cumulative and proportion of variances explained by each 
+    the factors")
+```
+
+```{r}
+Loadings = My.loadings.var(mat=Paydata, nfct=2, method="pca")$Loadings
+#
+# pca loadings
+kable(round(Loadings,3),
+  caption="Factor loadings of the first few PCAs and the cumulative proportion
+of variation explained by the corresponding PCAs in the How Students Pay question set.")
+```
+```{r}
+pca <- prcomp(Paydata, center = TRUE, scale = TRUE)
+sc.idx = pca$x[,1]
+
+hist(sc.idx,
+main="Distribution of first PCA of How Students Pay Questions",
+breaks = seq(min(sc.idx), max(sc.idx), length=9),
+xlab="How Students Pay PCA-1",
+xlim=range(sc.idx),
+border="red",
+col="lightblue",
+freq=FALSE
+)
+```
+
+Distribution skewed, transformation necessary 
+
+# Project Question 1
+
+The first project question I have for this data is which of these 9 question groups can be combined and maintain a high level of Internal consistency. I feel like this is an important question to answer as dividing these questions into 9 groups separates some of the information that could potentially help determine correlations between group. Furthermore I believe this is likely to be the case as many of these categories of questions point to similar topics. For instance theoretically the question groups "Student's Engagement in Learning" , "Remedial Experience", and "Campus Resource Usage" could be combined as they all pertain to the engagement and achievement of the student. The most important way to test if combining groups is viable is by using Chronbach's alpha to calculate internal consistency of the combined groups, as if the Chronbach's alpha significantly decreases in the combined group comapred to the groups that make it up, we could conclude that combining these groups would be improper.
+
+#Project Question 2
+
+The second project question I have is to determine which questions feature a biased response in which survey subjects are not reporting accurately. As this survey has to do with academic performance and engagement I believe it is likely that some survey takers may be reporting move positive results then what they believe is true. This is a hard question to tackle based on numbers alone, and  requires knowledge of how survey takers respond to the questions. For some questions such as thouse on academic performance and utilization of student resources, the school most likely has separate data sets containing the spread of students grades and the number of students that utalize certain campus resources. One way to check for any potential biased responses is to compare the survey data with the "official" academic and participation data and see if they align. 
